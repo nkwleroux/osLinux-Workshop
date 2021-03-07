@@ -9,72 +9,73 @@ SemaphoreHandle_t readerMutex;
 SemaphoreHandle_t writerMutex;
 int readercount = 0;
 int cnt = 2;
+static int i = 0;
 
+//ONLY WORKS FIRST TIME. AFTER 4 DOENS'T WORK ANYMORE.
 
 void writer(void *pvParameters){
     while (1)
     {  
-        if(xSemaphoreTake(writerMutex,10 ) == pdTRUE ){
+        if(xSemaphoreTake(writerMutex, 100) == pdTRUE ){
+            if(i){
             cnt += 2;
-            //int index = (int) pvParameters;
-            //printf("Writer %d : modified cnt to %d\n",index,cnt);
-            printf("Writer : modified cnt to %d\n",cnt);
+            int index = (int) pvParameters;
+            printf("\nWriter %d : modified cnt to %d\n\n",index,cnt);
+            //printf("Writer : modified cnt to %d\n",cnt);
+            i = 0;
             xSemaphoreGive(writerMutex);
+            }
         }
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(pdMS_TO_TICKS(100));
     }
 }
 
+//dont
+
 void reader(void *pvParameters){
-    int i = 0;
-   while (1)
+ 
+    while (1)
     {
-        xSemaphoreTake(readerMutex,0);
+        if(xSemaphoreTake(readerMutex,100) == pdTRUE){
 
-        readercount++;
-
-        if(readercount==1){
-            printf("readcount = 1\n");
-            if(xSemaphoreTake(writerMutex,0 ) == pdTRUE){
-                printf("xSemaphoreTake = pdTRUE\n");
-                i = 1;
+            readercount++;
+    
+            if(readercount==1){
+                printf("readcount = 1\n");
+                if(xSemaphoreTake(writerMutex, 0 ) == pdTRUE){
+                    printf("xSemaphoreTake = pdTRUE\n");
+                    i = 1;
+                    readercount-=2;
+                }
             }
+    
+            xSemaphoreGive(readerMutex);
         }
 
-        xSemaphoreGive(readerMutex);
+        int index = (int) pvParameters;
+        printf("Reader %d: read cnt as %d\n",index,cnt);
 
-        //int index = (int) pvParameters;
-        //printf("Reader %d: read cnt as %d\n",index,cnt);
-        printf("Reader: read cnt as %d\n",cnt);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        vTaskDelay(500);
 
-        xSemaphoreTake(readerMutex,0);
+        if(xSemaphoreTake(readerMutex,100) == pdTRUE){
 
-        readercount--;
+            readercount--;
 
-        printf("readcount before\n");
-        if(readercount==0){
-            //if(i){
-            printf("readcount = 0\n");
-              i = 0;
-           xSemaphoreGive(writerMutex);
-            //
+            printf("readcount %d before if\n",readercount);
 
-            // xSemaphoreTake(writerMutex,portMAX_DELAY );
-            // cnt += 2;
-            // printf("Writer : modified cnt to %d\n",cnt);
-            // xSemaphoreGive(writerMutex);
-            // vTaskDelay(pdMS_TO_TICKS(100));
-        
+            if(readercount==0){
+                printf("readcount = 0\n");
+                printf("i = %d\n",i);
+                
+                if(i){
+                    printf("i = true - 1\n");
+                    xSemaphoreGive(writerMutex);
+                    
+                }
+            }
+
+            xSemaphoreGive(readerMutex);
         }
-        printf("readcount after\n");
-
-        xSemaphoreGive(readerMutex);
-
-        vTaskDelay(pdMS_TO_TICKS(1000));
-        printf("%d Reader is leaving\n",readercount+1);
-
     }
     
 }
@@ -89,7 +90,7 @@ void init()
     for (int i = 0; i < numReadersAndWriters; i++)
     {
         xTaskCreate(&reader, "reader task", 2048, (void*)i, 0, NULL);
-        vTaskDelay(pdMS_TO_TICKS(10));
+        vTaskDelay(pdMS_TO_TICKS(1200));
     }
 
     for (int i = 0; i < numReadersAndWriters; i++)
